@@ -1,0 +1,35 @@
+@import "compass";
+
+.recorder {
+  text-align: center;
+}
+
+$mic-color: #b2b2b2;
+$mic-color-bg: #fff;
+$mic-color-active: #FF3F4E;
+$mic-color-transition: 0.5s;
+$mic-top-transition: 0.75s;
+.mic {
+  background: $mic-color-bg;
+  border-radius: 100%;
+  border: 4px solid $mic-color;
+  color: $mic-color;
+  display: inline-block;
+  cursor: pointer;
+  font-size: 72px;
+  height: 120px;
+  line-height: 120px;
+  width: 120px;
+  @include transition(border-color $mic-color-transition,
+                      color $mic-color-transition);
+  &.active {
+    color: $mic-color-active;
+    border-color: $mic-color-active;
+  }
+}
+.mic-status {
+  color: #ccc;
+  display: block;
+  font-size: 32px;
+  font-weight: bold;
+}
