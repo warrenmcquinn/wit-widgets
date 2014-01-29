@@ -16,16 +16,16 @@ module.exports = function (grunt) {
   grunt.initConfig({
     // configurable paths
     wit: {
-      recorder: 'app/recorder'
+      microphone: 'app/microphone'
     },
     yeoman: {
       app: 'app',
       dist: 'dist'
     },
     watch: {
-      recorder_compass: {
-        files: ['<%= wit.recorder %>/*.{scss,sass}'],
-        tasks: ['compass:recorder']
+      microphone_compass: {
+        files: ['<%= wit.microphone %>/*.{scss,sass}'],
+        tasks: ['compass:microphone']
       },
       coffee: {
         files: ['<%= yeoman.app %>/*/*.coffee'],
@@ -102,8 +102,8 @@ module.exports = function (grunt) {
     },
     compass: {
       options: {
-        sassDir: '<%= yeoman.app %>/recorder',
-        cssDir: '.tmp/recorder',
+        sassDir: '<%= yeoman.app %>/microphone',
+        cssDir: '.tmp/microphone',
         generatedImagesDir: '.tmp/images/generated',
         imagesDir: '<%= yeoman.app %>/images',
         javascriptsDir: '<%= yeoman.app %>/scripts',
@@ -120,10 +120,10 @@ module.exports = function (grunt) {
           generatedImagesDir: '<%= yeoman.dist %>/images/generated'
         }
       },
-      recorder: {
+      microphone: {
         options: {
-          sassDir: '<%= wit.recorder %>',
-          cssDir: '.tmp/recorder'
+          sassDir: '<%= wit.microphone %>',
+          cssDir: '.tmp/microphone'
         }
       }
     },
@@ -263,7 +263,7 @@ module.exports = function (grunt) {
 
     grunt.task.run([
       'clean:server',
-      'compass:recorder',
+      'compass:microphone',
       'coffee:widgets',
       'connect:livereload',
       'watch'
@@ -272,7 +272,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('build', [
     'clean:dist',
-    'compass:recorder',
+    'compass:microphone',
     'coffee:widgets',
     'useminPrepare',
     'concat',
