@@ -7,7 +7,7 @@ TAR=microphone.tar.gz
 
 grunt build
 mkdir -p $DIR
-cp dist/mic* $DIR
+cp -r dist/* $DIR
 
 cd $(dirname $DIR)
 

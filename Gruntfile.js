@@ -20,12 +20,17 @@ module.exports = function (grunt) {
     },
     yeoman: {
       app: 'app',
-      dist: 'dist'
+      dist: 'dist',
+      tmp: '.tmp'
     },
     watch: {
       microphone_compass: {
         files: ['<%= wit.microphone %>/*.{scss,sass}'],
         tasks: ['compass:microphone']
+      },
+      microphone_copy: {
+        files: ['<%= wit.microphone %>/**/*.{js,css,html,svg,eot,ttf,woff}'],
+        tasks: ['copy:microphone']
       },
       coffee: {
         files: ['<%= yeoman.app %>/*/*.coffee'],
@@ -37,8 +42,7 @@ module.exports = function (grunt) {
         },
         files: [
           '<%= yeoman.app %>/*/*.html',
-          '.tmp/*/{,*/}*.css',
-          '{.tmp,<%= yeoman.app %>/*}/{,*/}*.js',
+          '.tmp/*/{,*/}*.{js,css,html,svg}',
           '<%= yeoman.app %>/*/images/{,*/}*.{gif,jpeg,jpg,png,svg,webp}'
         ]
       }
@@ -232,14 +236,21 @@ module.exports = function (grunt) {
         files: [{
           expand: true,
           dot: true,
-          cwd: '<%= yeoman.app %>',
+          cwd: '<%= yeoman.tmp %>/microphone',
           dest: '<%= yeoman.dist %>',
           src: [
-            '*.{ico,png,txt}',
-            '.htaccess',
-            'images/{,*/}*.{webp,gif}',
-            'fonts/{,*/}*.*',
-            'bower_components/sass-bootstrap/fonts/*.*'
+            '**/*.{svg,ttf,eot,woff}'
+          ]
+        }]
+      },
+      microphone: {
+        files: [{
+          expand: true,
+          dot: true,
+          cwd: '<%= yeoman.app %>',
+          dest: '<%= yeoman.tmp %>',
+          src: [
+            'microphone/**/*.{js,css,html,svg,eot,ttf,woff}'
           ]
         }]
       }
@@ -263,6 +274,7 @@ module.exports = function (grunt) {
 
     grunt.task.run([
       'clean:server',
+      'copy:microphone',
       'compass:microphone',
       'coffee:widgets',
       'connect:livereload',
@@ -272,6 +284,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('build', [
     'clean:dist',
+    'copy:microphone',
     'compass:microphone',
     'coffee:widgets',
     'useminPrepare',
