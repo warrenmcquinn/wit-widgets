@@ -1,11 +1,20 @@
 document.addEventListener 'DOMContentLoaded', (e) ->
   opts =
+    verbose: true
     onError: (err) ->
       console.log err
     onResult: (data) ->
       console.log data
+    onReady: ->
+      console.log "ready"
+    onRecording: ->
+      console.log "record"
+    onProcessing: ->
+      console.log "proces"
 
   comp = (Wit.Recorder opts)
   React.renderComponent comp, document.getElementById('recorder')
 
-  comp.auth("d617e4bc-07b4-45ba-b7f3-5f6dc396ffc6")
+  token = localStorage.getItem('wit_token')
+  console.log "Auth with #{token}"
+  comp.auth(token)
