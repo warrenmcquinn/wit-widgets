@@ -168,6 +168,8 @@ Microphone.prototype.fsm = (event) ->
   else
     log "fsm error: #{@state} + #{event}", ary
 
+  s
+
 Microphone.prototype.connect = (token) ->
   @fsm('connect', token)
 
