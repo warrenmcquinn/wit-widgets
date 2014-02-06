@@ -30,7 +30,7 @@ Microphone = (elem) ->
     @elem = elem
 
     elem.innerHTML = """
-      <div class='mic icon-microphone'>
+      <div class='mic icon-wit-mic'>
       </div>
     """
     elem.className = 'wit-microphone'
