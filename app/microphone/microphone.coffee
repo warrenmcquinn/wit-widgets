@@ -132,6 +132,9 @@ states =
       @mkactive()
       'audiostart'
   audiostart:
+    error: (data) ->
+      @handleError(new WitError("Error during recording", data: data))
+      'ready'
     socket_closed: ->
       @rmactive()
       'disconnected'
