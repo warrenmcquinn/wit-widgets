@@ -10,6 +10,35 @@ window.AudioContext =
   window.mozAudioContext ||
   window.msAudioContext
 
+
+do ->
+  w = window
+  for vendor in ['ms', 'moz', 'webkit', 'o']
+      break if w.requestAnimationFrame
+      w.requestAnimationFrame = w["#{vendor}RequestAnimationFrame"]
+      w.cancelAnimationFrame = (w["#{vendor}CancelAnimationFrame"] or
+                                w["#{vendor}CancelRequestAnimationFrame"])
+
+  # deal with the case where rAF is built in but cAF is not.
+  if w.requestAnimationFrame
+      return if w.cancelAnimationFrame
+      browserRaf = w.requestAnimationFrame
+      canceled = {}
+      w.requestAnimationFrame = (callback) ->
+          id = browserRaf (time) ->
+              if id of canceled then delete canceled[id]
+              else callback time
+      w.cancelAnimationFrame = (id) -> canceled[id] = true
+
+  # handle legacy browsers which don’t implement rAF
+  else
+      targetTime = 0
+      w.requestAnimationFrame = (callback) ->
+          targetTime = Math.max targetTime + 16, currentTime = +new Date
+          w.setTimeout (-> callback +new Date), targetTime - currentTime
+
+      w.cancelAnimationFrame = (id) -> clearTimeout id
+
 log = if /debug/.test(window.location.search)
   (-> console.log.apply(console, arguments))
 else
@@ -25,18 +54,6 @@ WitError.prototype = Error.prototype
 WEBSOCKET_HOST = 'wss://api.wit.ai/speech_ws'
 
 Microphone = (elem) ->
-  # setup HTML element
-  if elem
-    @elem = elem
-
-    elem.innerHTML = """
-      <div class='mic icon-wit-mic'>
-      </div>
-    """
-    elem.className = 'wit-microphone'
-    elem.addEventListener 'click', (e) =>
-      @fsm('toggle_record')
-
   # object state
   @conn  = null
   @ctx   = new AudioContext()
@@ -52,12 +69,34 @@ Microphone = (elem) ->
       else
         "Something went wrong!"
 
-      f.call(window, err)
+      f.call(window, err, e)
   @handleResult = (res) ->
     if _.isFunction(f = @onresult)
       intent   = res.outcome.intent
       entities = res.outcome.entities
       f.call(window, intent, entities, res)
+
+  # DOM setup
+  if elem
+    @elem = elem
+
+    elem.innerHTML = """
+      <div class='mic mic-box icon-wit-mic'>
+      </div>
+      <svg class='mic-svg mic-box'>
+      </svg>
+    """
+    elem.className = 'wit-microphone'
+    elem.addEventListener 'click', (e) =>
+      @fsm('toggle_record')
+
+    svg = @elem.children[1]
+    ns  = "http://www.w3.org/2000/svg"
+    @path = document.createElementNS(ns, 'path')
+    @path.setAttribute('stroke', '#eee')
+    @path.setAttribute('stroke-width', '5')
+    @path.setAttribute('fill', 'none')
+    svg.appendChild(@path)
 
   # DOM methods
   @rmactive = ->
@@ -66,6 +105,38 @@ Microphone = (elem) ->
   @mkactive = ->
     if @elem
       @elem.firstChild.classList.add('active')
+  @mkthinking = ->
+    @thinking = true
+    start = window.performance?.now() || new Date
+    tick = (time) =>
+      if @elem
+        style = getComputedStyle(svg)
+
+        w = parseInt(style.width, 10)
+        h = parseInt(style.height, 10)
+        r = w/2-5
+
+        T = 2750 # secs
+        rads = (((time-start)%T)/T) * 2*Math.PI - Math.PI/2
+        from_x = w/2
+        from_y = h/2-r
+        to_x = Math.cos(rads)*r+w/2
+        to_y = Math.sin(rads)*r+h/2
+        xrotate = 0
+        laf  = +(1.5*Math.PI > rads > Math.PI/2) # large arc flag (smallest=0 or largest=1 is drawn)
+        swf  = 1 # sweep flag (anticw=0, clockwise=1)
+
+        @path.setAttribute('d', "M#{from_x},#{from_y}A#{r},#{r},#{xrotate},#{laf},#{swf},#{to_x},#{to_y}")
+
+        if @thinking
+          requestAnimationFrame tick
+        else
+          @path.setAttribute('d', 'M0,0')
+
+    requestAnimationFrame tick
+
+  @rmthinking = ->
+    @thinking = false
 
   return this
 
@@ -99,6 +170,7 @@ states =
     socket_closed: -> 'disconnected'
   ready:
     socket_closed: -> 'disconnected'
+    timeout: -> 'ready'
     start: -> @fsm('toggle_record')
     toggle_record: ->
       on_stream = (stream) =>
@@ -129,14 +201,12 @@ states =
       'waiting_for_stream'
   waiting_for_stream:
     got_stream: ->
-      @mkactive()
       'audiostart'
   audiostart:
     error: (data) ->
-      @handleError(new WitError("Error during recording", data: data))
+      @handleError(new WitError("Error during recording", code: 'RECORD', data: data))
       'ready'
     socket_closed: ->
-      @rmactive()
       'disconnected'
     stop: -> @fsm('toggle_record')
     toggle_record: ->
@@ -144,16 +214,20 @@ states =
         f()
         @cleanup = null
 
-      @rmactive()
       @conn.send(JSON.stringify(["stop"]))
+      @timer = setTimeout (=> @fsm('timeout')), 7000
 
       'audioend'
   audioend:
     socket_closed: -> 'disconnected'
+    timeout: ->
+      @handleError(new WitError('Wit timed out', code: 'TIMEOUT'))
+      'ready'
     error: (data) ->
-      @handleError(new WitError('Wit did not recognize intent', {data: data}))
+      @handleError(new WitError('Wit did not recognize intent', code: 'RESULT', data: data))
       'ready'
     result: (data) ->
+      clearTimeout(@timer) if @timer
       @handleResult(data)
       'ready'
 
@@ -168,6 +242,19 @@ Microphone.prototype.fsm = (event) ->
     if s in ['audiostart', 'audioend', 'ready']
       if _.isFunction(f = this['on' + s])
         f.call(window)
+
+    switch s
+      when 'disconnected'
+        @rmthinking()
+        @rmactive()
+      when 'ready'
+        @rmthinking()
+        @rmactive()
+      when 'audiostart'
+        @mkactive()
+      when 'audioend'
+        @mkthinking()
+        @rmactive()
   else
     log "fsm error: #{@state} + #{event}", ary
 
