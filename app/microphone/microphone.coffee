@@ -58,6 +58,7 @@ Microphone = (elem) ->
   @conn  = null
   @ctx   = new AudioContext()
   @state = 'disconnected'
+  @rec   = false
 
   # methods
   @handleError = (e) ->
@@ -163,35 +164,24 @@ states =
           @fsm.call(this, type)
 
       @conn = conn
-      'connecting'
-  connecting:
-    'auth-ok': -> 'ready'
-    error: (err) ->
-      @handleError(err)
-      'connecting'
-    socket_closed: -> 'disconnected'
-  ready:
-    socket_closed: -> 'disconnected'
-    timeout: -> 'ready'
-    start: -> @fsm('toggle_record')
-    toggle_record: ->
-      on_stream = (stream) =>
-        @conn.send(JSON.stringify(["start"]))
 
+      # webrtc
+      on_stream = (stream) =>
         ctx  = @ctx
         src  = ctx.createMediaStreamSource(stream)
         proc = (ctx.createScriptProcessor || ctx.createJavascriptNode).call(ctx, 4096, 1, 1)
         proc.onaudioprocess = (e) =>
+          return unless @rec
           bytes = e.inputBuffer.getChannelData(0)
           @conn.send(bytes)
 
         src.connect(proc)
         proc.connect(ctx.destination)
 
-        @cleanup = ->
-          src.disconnect()
-          proc.disconnect()
-          stream.stop()
+        # @cleanup = ->
+        #   src.disconnect()
+        #   proc.disconnect()
+        #   stream.stop()
 
         @fsm('got_stream')
 
@@ -200,9 +190,25 @@ states =
         on_stream,
         @handleError
       )
-      'waiting_for_stream'
+      'connecting'
+  connecting:
+    'auth-ok': -> 'waiting_for_stream'
+    got_stream: -> 'waiting_for_auth'
+    error: (err) ->
+      @handleError(err)
+      'connecting'
+    socket_closed: -> 'disconnected'
+  waiting_for_auth:
+    'auth-ok': -> 'ready'
   waiting_for_stream:
-    got_stream: ->
+    got_stream: -> 'ready'
+  ready:
+    socket_closed: -> 'disconnected'
+    timeout: -> 'ready'
+    start: -> @fsm('toggle_record')
+    toggle_record: ->
+      @conn.send(JSON.stringify(["start"]))
+      @rec = true
       'audiostart'
   audiostart:
     error: (data) ->
@@ -212,10 +218,11 @@ states =
       'disconnected'
     stop: -> @fsm('toggle_record')
     toggle_record: ->
-      if _.isFunction(f = @cleanup)
-        f()
-        @cleanup = null
+      # if _.isFunction(f = @cleanup)
+      #   f()
+      #   @cleanup = null
 
+      @rec = false
       @conn.send(JSON.stringify(["stop"]))
       @timer = setTimeout (=> @fsm('timeout')), 7000
 
