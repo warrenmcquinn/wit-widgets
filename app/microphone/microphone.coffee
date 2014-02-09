@@ -101,12 +101,13 @@ Microphone = (elem) ->
   # DOM methods
   @rmactive = ->
     if @elem
-      @elem.firstChild.classList.remove('active')
+      @elem.classList.remove('active')
   @mkactive = ->
     if @elem
-      @elem.firstChild.classList.add('active')
+      @elem.classList.add('active')
   @mkthinking = ->
     @thinking = true
+    @elem.classList.add('thinking')
     start = window.performance?.now() || new Date
     tick = (time) =>
       if @elem
@@ -116,7 +117,7 @@ Microphone = (elem) ->
         h = parseInt(style.height, 10)
         r = w/2-5
 
-        T = 2750 # secs
+        T = 1000 # msecs
         rads = (((time-start)%T)/T) * 2*Math.PI - Math.PI/2
         from_x = w/2
         from_y = h/2-r
@@ -131,6 +132,7 @@ Microphone = (elem) ->
         if @thinking
           requestAnimationFrame tick
         else
+          @elem.classList.remove('thinking')
           @path.setAttribute('d', 'M0,0')
 
     requestAnimationFrame tick
