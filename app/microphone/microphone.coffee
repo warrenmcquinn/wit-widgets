@@ -178,6 +178,11 @@ states =
         src.connect(proc)
         proc.connect(ctx.destination)
 
+        # NECESSARY HACK: prevent garbage-collection of these guys
+        @stream = stream
+        @proc   = proc
+        @src    = src
+
         # @cleanup = ->
         #   src.disconnect()
         #   proc.disconnect()
@@ -209,12 +214,19 @@ states =
     toggle_record: ->
       @conn.send(JSON.stringify(["start"]))
       @rec = true
+      console.error "No context" if !@ctx
+      console.error "No stream" if !@stream
+      console.error "No source" if !@src
+      console.error "No processor" if !@proc
+
       'audiostart'
   audiostart:
     error: (data) ->
+      @rec = false
       @handleError(new WitError("Error during recording", code: 'RECORD', data: data))
       'ready'
     socket_closed: ->
+      @rec = false
       'disconnected'
     stop: -> @fsm('toggle_record')
     toggle_record: ->
@@ -228,11 +240,14 @@ states =
 
       'audioend'
   audioend:
-    socket_closed: -> 'disconnected'
+    socket_closed: ->
+      clearTimeout(@timer) if @timer
+      'disconnected'
     timeout: ->
       @handleError(new WitError('Wit timed out', code: 'TIMEOUT'))
       'ready'
     error: (data) ->
+      clearTimeout(@timer) if @timer
       @handleError(new WitError('Wit did not recognize intent', code: 'RESULT', data: data))
       'ready'
     result: (data) ->
