@@ -87,7 +87,7 @@ Microphone = (elem) ->
       <svg class='mic-svg mic-box'>
       </svg>
     """
-    elem.className = 'wit-microphone'
+    elem.className += ' wit-microphone'
     elem.addEventListener 'click', (e) =>
       @fsm('toggle_record')
 
@@ -108,26 +108,27 @@ Microphone = (elem) ->
       @elem.classList.add('active')
   @mkthinking = ->
     @thinking = true
-    @elem.classList.add('thinking')
-    start = window.performance?.now() || new Date
-    tick = (time) =>
-      if @elem
-        style = getComputedStyle(svg)
-
-        w = parseInt(style.width, 10)
-        h = parseInt(style.height, 10)
-        r = w/2-5
-
-        T = 1000 # msecs
+    if @elem
+      style = getComputedStyle(svg)
+      @elem.classList.add('thinking')
+      w = parseInt(style.width, 10)
+      h = parseInt(style.height, 10)
+      b = if style.boxSizing == 'border-box'
+        parseInt(style.borderTopWidth, 10)
+      else
+        0
+      r = w/2-b-5
+      T = 1000 # msecs
+      from_x = w/2-b
+      from_y = h/2-b-r
+      xrotate = 0
+      swf  = 1 # sweep flag (anticw=0, clockwise=1)
+      start = window.performance?.now() || new Date
+      tick = (time) =>
         rads = (((time-start)%T)/T) * 2*Math.PI - Math.PI/2
-        from_x = w/2
-        from_y = h/2-r
-        to_x = Math.cos(rads)*r+w/2
-        to_y = Math.sin(rads)*r+h/2
-        xrotate = 0
+        to_x = Math.cos(rads)*r+w/2-b
+        to_y = Math.sin(rads)*r+h/2-b
         laf  = +(1.5*Math.PI > rads > Math.PI/2) # large arc flag (smallest=0 or largest=1 is drawn)
-        swf  = 1 # sweep flag (anticw=0, clockwise=1)
-
         @path.setAttribute('d', "M#{from_x},#{from_y}A#{r},#{r},#{xrotate},#{laf},#{swf},#{to_x},#{to_y}")
 
         if @thinking
@@ -136,7 +137,7 @@ Microphone = (elem) ->
           @elem.classList.remove('thinking')
           @path.setAttribute('d', 'M0,0')
 
-    requestAnimationFrame tick
+      requestAnimationFrame tick
 
   @rmthinking = ->
     @thinking = false
