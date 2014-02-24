@@ -48,6 +48,9 @@ $mic-top-transition: 0.75s;
 }
 .mic-box {
   border: 4px solid $mic-color;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
 }
 .mic-svg {
   position: absolute;
